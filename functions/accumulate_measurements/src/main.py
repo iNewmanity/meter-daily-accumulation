@@ -72,7 +72,8 @@ def main(context):
 
         internal_device_id = meter_res['rows'][0]['$id']
         last_month_val = meter_res['rows'][0].get('consumption_at_set_date_hca', 0)
-        context.log(f"Resolved internal ID: {internal_device_id}, last_month: {last_month_val}")
+        date_last_month_val = meter_res['rows'][0].get('set_date')
+        context.log(f"Resolved internal ID: {internal_device_id}, last_month: {last_month_val}, date_last_month: {date_last_month_val}")
 
         # Fetch earliest measurement for the day
         context.log(f"Fetching earliest measurement between {start_of_day} and {end_of_day} using 'timestamp' attribute")
@@ -129,7 +130,8 @@ def main(context):
                 'end': end_val,
                 'meters': internal_device_id,
                 'current': daily_current,
-                'last_month': last_month_val
+                'last_month': last_month_val,
+                'date_last_month': date_last_month_val
             }
         )
 
