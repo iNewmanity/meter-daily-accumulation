@@ -3,7 +3,13 @@ from appwrite.services.databases import Databases
 from appwrite.query import Query
 import json
 import os
+import warnings
 from datetime import datetime, time
+
+# Suppress DeprecationWarnings to avoid "Native logs detected" in Appwrite
+# This is necessary because Appwrite 1.8.0+ marks Databases.list_documents as deprecated,
+# but the suggested replacement (TablesDB) might not be available in all SDK versions.
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 def main(context):
     # Retrieve environment variables
