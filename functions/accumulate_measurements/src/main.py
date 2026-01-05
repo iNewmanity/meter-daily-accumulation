@@ -71,7 +71,8 @@ def main(context):
             return context.res.json({"error": f"Device {device_id} not found"}, 404)
 
         internal_device_id = meter_res['rows'][0]['$id']
-        context.log(f"Resolved internal ID: {internal_device_id}")
+        last_month_val = meter_res['rows'][0].get('consumption_at_set_date_hca', 0)
+        context.log(f"Resolved internal ID: {internal_device_id}, last_month: {last_month_val}")
 
         # Fetch earliest measurement for the day
         context.log(f"Fetching earliest measurement between {start_of_day} and {end_of_day} using 'timestamp' attribute")
@@ -127,7 +128,8 @@ def main(context):
                 'start': start_val,
                 'end': end_val,
                 'meters': internal_device_id,
-                'current': daily_current
+                'current': daily_current,
+                'last_month': last_month_val
             }
         )
 
