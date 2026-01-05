@@ -16,6 +16,7 @@ Appwrite function to accumulate daily measurements from raw data.
    - `APPWRITE_DATABASE_ID`: The ID of your database.
    - `APPWRITE_RAW_COLLECTION_ID`: The ID of the `raw` collection.
    - `APPWRITE_DAILY_COLLECTION_ID`: The ID of the `daily-measurements` collection.
+   - `APPWRITE_METERS_COLLECTION_ID`: The ID of the `meters` collection.
    - `APPWRITE_API_KEY`: An API key with read/write access to databases.
 3. Deploy the code from the `functions/accumulate_measurements` directory.
 

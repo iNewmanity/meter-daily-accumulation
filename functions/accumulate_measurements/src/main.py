@@ -14,8 +14,9 @@ def main(context):
     database_id = os.environ.get('APPWRITE_DATABASE_ID')
     raw_collection_id = os.environ.get('APPWRITE_RAW_COLLECTION_ID')
     daily_collection_id = os.environ.get('APPWRITE_DAILY_COLLECTION_ID')
+    meters_collection_id = os.environ.get('APPWRITE_METERS_COLLECTION_ID')
 
-    if not all([database_id, raw_collection_id, daily_collection_id]):
+    if not all([database_id, raw_collection_id, daily_collection_id, meters_collection_id]):
         context.error("Missing environment variables.")
         return context.res.json({"error": "Configuration error"}, 500)
 
@@ -54,13 +55,31 @@ def main(context):
     tables_db = TablesDB(client)
 
     try:
+        # Resolve device-id to internal database $id
+        context.log(f"Resolving internal ID for device-id: {device_id}")
+        meter_res = tables_db.list_rows(
+            database_id,
+            meters_collection_id,
+            queries=[
+                Query.equal('device-id', device_id),
+                Query.limit(1)
+            ]
+        )
+
+        if meter_res['total'] == 0:
+            context.error(f"Device with ID {device_id} not found in meters collection.")
+            return context.res.json({"error": f"Device {device_id} not found"}, 404)
+
+        internal_device_id = meter_res['rows'][0]['$id']
+        context.log(f"Resolved internal ID: {internal_device_id}")
+
         # Fetch all measurements for the day
         context.log(f"Fetching measurements between {start_of_day} and {end_of_day} using 'timestamp' attribute")
         measurements_res = tables_db.list_rows(
             database_id,
             raw_collection_id,
             queries=[
-                Query.equal('meters', device_id),
+                Query.equal('meters', internal_device_id),
                 Query.greater_than_equal('timestamp', start_of_day),
                 Query.less_than_equal('timestamp', end_of_day),
                 Query.order_asc('timestamp'),
@@ -99,7 +118,7 @@ def main(context):
                 'day': start_of_day,
                 'start': start_val,
                 'end': end_val,
-                'meters': device_id,
+                'meters': internal_device_id,
                 'current': daily_current
             }
         )
