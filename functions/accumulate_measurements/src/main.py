@@ -1,19 +1,16 @@
 from appwrite.client import Client
-from appwrite.services.databases import Databases
+from appwrite.services.tables_db import TablesDB
 from appwrite.query import Query
 import json
 import os
 import warnings
 from datetime import datetime, time
 
-# Suppress DeprecationWarnings to avoid "Native logs detected" in Appwrite
-# This is necessary because Appwrite 1.8.0+ marks Databases.list_documents as deprecated,
-# but the suggested replacement (TablesDB) might not be available in all SDK versions.
+# Suppress DeprecationWarnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 def main(context):
     # Retrieve environment variables
-    # These should be set in the Appwrite Console for the function
     database_id = os.environ.get('APPWRITE_DATABASE_ID')
     raw_collection_id = os.environ.get('APPWRITE_RAW_COLLECTION_ID')
     daily_collection_id = os.environ.get('APPWRITE_DAILY_COLLECTION_ID')
@@ -54,12 +51,12 @@ def main(context):
     client.set_project(os.environ.get('APPWRITE_FUNCTION_PROJECT_ID'))
     client.set_key(context.req.headers.get('x-appwrite-key') or os.environ.get('APPWRITE_API_KEY'))
 
-    databases = Databases(client)
+    tables_db = TablesDB(client)
 
     try:
         # Fetch earliest measurement for the day
         context.log(f"Fetching earliest measurement between {start_of_day} and {end_of_day}")
-        earliest_res = databases.list_documents(
+        earliest_res = tables_db.list_rows(
             database_id,
             raw_collection_id,
             queries=[
@@ -73,7 +70,7 @@ def main(context):
 
         # Fetch latest measurement for the day
         context.log("Fetching latest measurement")
-        latest_res = databases.list_documents(
+        latest_res = tables_db.list_rows(
             database_id,
             raw_collection_id,
             queries=[
@@ -89,8 +86,9 @@ def main(context):
             context.log("No data found for the given device and date")
             return context.res.json({"message": "No data found for the given device and date"}, 404)
 
-        earliest_doc = earliest_res['documents'][0]
-        latest_doc = latest_res['documents'][0]
+        # In TablesDB, the key is 'rows' instead of 'documents'
+        earliest_doc = earliest_res['rows'][0]
+        latest_doc = latest_res['rows'][0]
 
         start_val = earliest_doc.get('current_consumption_hca', 0)
         end_val = latest_doc.get('current_consumption_hca', 0)
@@ -98,8 +96,8 @@ def main(context):
         daily_current = end_val - start_val
         context.log(f"Calculated daily consumption: {daily_current}")
 
-        # Create document in daily-measurements
-        new_doc = databases.create_document(
+        # Create row in daily-measurements
+        new_row = tables_db.create_row(
             database_id,
             daily_collection_id,
             'unique()',
@@ -112,10 +110,10 @@ def main(context):
             }
         )
 
-        context.log(f"Successfully created daily measurement document: {new_doc['$id']}")
+        context.log(f"Successfully created daily measurement row: {new_row['$id']}")
         return context.res.json({
             "message": "Daily measurement accumulated successfully",
-            "documentId": new_doc['$id']
+            "documentId": new_row['$id']
         }, 201)
 
     except Exception as e:
