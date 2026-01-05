@@ -1,5 +1,5 @@
 from appwrite.client import Client
-from appwrite.services.databases import Databases
+from appwrite.services.tablesdb import TablesDB
 from appwrite.query import Query
 import json
 import os
@@ -37,6 +37,8 @@ def main(context):
     except ValueError:
         return context.res.json({"error": "Invalid date format. Use YYYY-MM-DD"}, 400)
 
+    context.log(f"Processing accumulation for device {device_id} on {date_str}")
+
     # Define the time range for the day
     start_of_day = datetime.combine(target_date, time.min).isoformat()
     end_of_day = datetime.combine(target_date, time.max).isoformat()
@@ -46,11 +48,12 @@ def main(context):
     client.set_project(os.environ.get('APPWRITE_FUNCTION_PROJECT_ID'))
     client.set_key(context.req.headers.get('x-appwrite-key') or os.environ.get('APPWRITE_API_KEY'))
 
-    databases = Databases(client)
+    tables = TablesDB(client)
 
     try:
         # Fetch earliest measurement for the day
-        earliest_res = databases.list_documents(
+        context.log(f"Fetching earliest measurement between {start_of_day} and {end_of_day}")
+        earliest_res = tables.list_rows(
             database_id,
             raw_collection_id,
             queries=[
@@ -63,7 +66,8 @@ def main(context):
         )
 
         # Fetch latest measurement for the day
-        latest_res = databases.list_documents(
+        context.log("Fetching latest measurement")
+        latest_res = tables.list_rows(
             database_id,
             raw_collection_id,
             queries=[
@@ -76,21 +80,20 @@ def main(context):
         )
 
         if earliest_res['total'] == 0:
+            context.log("No data found for the given device and date")
             return context.res.json({"message": "No data found for the given device and date"}, 404)
 
-        earliest_doc = earliest_res['documents'][0]
-        latest_doc = latest_res['documents'][0]
+        earliest_doc = earliest_res['rows'][0]
+        latest_doc = latest_res['rows'][0]
 
         start_val = earliest_doc.get('current_consumption_hca', 0)
         end_val = latest_doc.get('current_consumption_hca', 0)
         
-        # In the schema image, 'current' seems to be the delta or the current total
-        # Usually it's end - start
         daily_current = end_val - start_val
+        context.log(f"Calculated daily consumption: {daily_current}")
 
         # Create row in daily-measurements
-        # Schema from image: day (datetime), start (int), end (int), meters (rel), current (int)
-        new_doc = databases.create_document(
+        new_doc = tables.create_row(
             database_id,
             daily_collection_id,
             'unique()',
@@ -103,6 +106,7 @@ def main(context):
             }
         )
 
+        context.log(f"Successfully created daily measurement document: {new_doc['$id']}")
         return context.res.json({
             "message": "Daily measurement accumulated successfully",
             "documentId": new_doc['$id']
