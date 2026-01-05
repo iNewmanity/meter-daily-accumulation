@@ -124,27 +124,53 @@ def main(context):
         daily_current = end_val - start_val
         context.log(f"Calculated daily consumption: {daily_current}")
 
-        # Create row in daily-measurements
-        new_row = tables_db.create_row(
+        # Check if an entry for this day and meter already exists
+        context.log(f"Checking if entry exists for meter {internal_device_id} and day {start_of_day}")
+        existing_res = tables_db.list_rows(
             database_id,
             daily_collection_id,
-            'unique()',
-            {
-                'day': start_of_day,
-                'start': start_val,
-                'end': end_val,
-                'meters': internal_device_id,
-                'current': daily_current,
-                'last_month': last_month_val,
-                'date_last_month': date_last_month_val
-            }
+            queries=[
+                Query.equal('meters', internal_device_id),
+                Query.equal('day', start_of_day),
+                Query.limit(1)
+            ]
         )
 
-        context.log(f"Successfully created daily measurement row: {new_row['$id']}")
+        row_data = {
+            'day': start_of_day,
+            'start': start_val,
+            'end': end_val,
+            'meters': internal_device_id,
+            'current': daily_current,
+            'last_month': last_month_val,
+            'date_last_month': date_last_month_val
+        }
+
+        if existing_res['total'] > 0:
+            existing_row_id = existing_res['rows'][0]['$id']
+            context.log(f"Updating existing daily measurement row: {existing_row_id}")
+            result_row = tables_db.update_row(
+                database_id,
+                daily_collection_id,
+                existing_row_id,
+                row_data
+            )
+            message = "Daily measurement updated successfully"
+        else:
+            context.log("No existing entry found. Creating new row.")
+            result_row = tables_db.create_row(
+                database_id,
+                daily_collection_id,
+                'unique()',
+                row_data
+            )
+            message = "Daily measurement accumulated successfully"
+
+        context.log(f"Operation successful: {result_row['$id']}")
         return context.res.json({
-            "message": "Daily measurement accumulated successfully",
-            "documentId": new_row['$id']
-        }, 201)
+            "message": message,
+            "documentId": result_row['$id']
+        }, 201 if message == "Daily measurement accumulated successfully" else 200)
 
     except Exception as e:
         context.error(f"Error during accumulation: {str(e)}")

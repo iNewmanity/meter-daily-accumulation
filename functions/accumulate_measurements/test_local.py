@@ -96,11 +96,7 @@ def test_function(MockTablesDB):
         elif collection_id == 'test_raw':
             # Identify if it is asking for earliest (ASC) or latest (DESC)
             is_desc = any(isinstance(q, MagicMock) and "order_desc" in str(q) for q in queries) or \
-                      any("order_desc" in str(q) for q in queries) # Fallback for how it's mocked
-            
-            # Since Query is mocked, we need to be careful. 
-            # In the real code Query.order_asc/desc are used.
-            # In test_local.py, sys.modules['appwrite.query'] = MagicMock()
+                      any("order_desc" in str(q) for q in queries)
             
             if is_desc:
                 return {
@@ -112,19 +108,50 @@ def test_function(MockTablesDB):
                     'total': 3,
                     'rows': [mock_rows[0]]
                 }
+        elif collection_id == 'test_daily':
+            # This is the existence check for daily-measurements
+            # We can control this to test CREATE vs UPDATE
+            if os.environ.get('TEST_MODE') == 'UPDATE':
+                return {
+                    'total': 1,
+                    'rows': [{'$id': 'existing_row_789'}]
+                }
+            else:
+                return {
+                    'total': 0,
+                    'rows': []
+                }
         return {'total': 0, 'rows': []}
 
     mock_instance.list_rows.side_effect = side_effect
     
-    # Mock behavior of create_row to return our dict
+    # Mock behavior of create_row and update_row
     mock_instance.create_row.return_value = {'$id': 'new_doc_id'}
+    mock_instance.update_row.return_value = {'$id': 'existing_row_789'}
 
-    print("Running local test with mocked Appwrite SDK (TablesDB)...")
+    print("\n--- Testing CREATE Mode ---")
+    os.environ['TEST_MODE'] = 'CREATE'
     result = main(context)
-    
     print(f"Result: {result}")
-    print(f"Logs: {context.logs}")
-    print(f"Errors: {context.errors}")
+    
+    if result['status_code'] == 201 and "accumulated successfully" in result['data']['message']:
+        print("SUCCESS: Create mode verified.")
+    else:
+        print(f"FAILURE: Unexpected result in Create mode: {result}")
+        sys.exit(1)
+
+    print("\n--- Testing UPDATE Mode ---")
+    os.environ['TEST_MODE'] = 'UPDATE'
+    # We need a new context or clear the logs if we want to be clean, but for now just run
+    context_update = MockContext(payload)
+    result_update = main(context_update)
+    print(f"Result: {result_update}")
+
+    if result_update['status_code'] == 200 and "updated" in result_update['data']['message']:
+        print("SUCCESS: Update mode verified.")
+    else:
+        print(f"FAILURE: Unexpected result in Update mode: {result_update}")
+        sys.exit(1)
 
     # Check if 'timestamp' was used in logs
     timestamp_log_found = any("using 'timestamp' attribute" in log for log in context.logs)
@@ -132,19 +159,28 @@ def test_function(MockTablesDB):
         print("\nFAILURE: Function did not log using 'timestamp' attribute.")
         sys.exit(1)
 
-    if result['status_code'] == 201:
-        # Verify last_month was passed to create_row
-        call_args = mock_instance.create_row.call_args[0]
-        row_data = call_args[3]
-        if row_data.get('last_month') == 600 and row_data.get('date_last_month') == '2025-12-15T00:00:00Z':
-            print("SUCCESS: last_month and date_last_month correctly passed to create_row from RAW.")
-        else:
-            print(f"FAILURE: last_month or date_last_month not found or incorrect in create_row: {row_data}")
-            sys.exit(1)
-        print("\nSUCCESS: Function executed correctly with mocked TablesDB and timestamp attribute.")
+    # Verify last_month was passed to create_row (from the first run)
+    create_call_args = next(call for call in mock_instance.create_row.call_args_list)
+    row_data = create_call_args[0][3]
+    if row_data.get('last_month') == 600 and row_data.get('date_last_month') == '2025-12-15T00:00:00Z':
+        print("SUCCESS: last_month and date_last_month correctly passed to create_row.")
     else:
-        print(f"\nFAILURE: Function returned status {result['status_code']}")
+        print(f"FAILURE: last_month or date_last_month incorrect in create_row: {row_data}")
         sys.exit(1)
+    
+    # Verify update_row was called (from the second run)
+    if mock_instance.update_row.called:
+        update_call_args = mock_instance.update_row.call_args[0]
+        if update_call_args[2] == 'existing_row_789':
+            print("SUCCESS: update_row called with correct ID.")
+        else:
+            print(f"FAILURE: update_row called with wrong ID: {update_call_args[2]}")
+            sys.exit(1)
+    else:
+        print("FAILURE: update_row was not called in UPDATE mode.")
+        sys.exit(1)
+
+    print("\nALL LOCAL TESTS PASSED")
 
 if __name__ == "__main__":
     test_function()
