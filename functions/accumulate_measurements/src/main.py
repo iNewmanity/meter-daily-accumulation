@@ -86,6 +86,8 @@ def main(context):
             context.log("No data found for the given device and date")
             return context.res.json({"message": "No data found for the given device and date"}, 404)
 
+        context.log(f"Found {earliest_res['total']} measurements for this day using 'device_time' attribute")
+
         # In TablesDB, the key is 'rows' instead of 'documents'
         earliest_doc = earliest_res['rows'][0]
         latest_doc = latest_res['rows'][0]
