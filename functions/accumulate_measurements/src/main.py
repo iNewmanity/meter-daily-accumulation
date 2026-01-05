@@ -71,9 +71,7 @@ def main(context):
             return context.res.json({"error": f"Device {device_id} not found"}, 404)
 
         internal_device_id = meter_res['rows'][0]['$id']
-        last_month_val = meter_res['rows'][0].get('consumption_at_set_date_hca', 0)
-        date_last_month_val = meter_res['rows'][0].get('set_date')
-        context.log(f"Resolved internal ID: {internal_device_id}, last_month: {last_month_val}, date_last_month: {date_last_month_val}")
+        context.log(f"Resolved internal ID: {internal_device_id}")
 
         # Fetch earliest measurement for the day
         context.log(f"Fetching earliest measurement between {start_of_day} and {end_of_day} using 'timestamp' attribute")
@@ -93,6 +91,13 @@ def main(context):
             context.log("No data found for the given device and date")
             return context.res.json({"message": "No data found for the given device and date"}, 404)
 
+        earliest_doc = earliest_res['rows'][0]
+        
+        # Get last_month and date_last_month from the raw measurement
+        last_month_val = earliest_doc.get('consumption_at_set_date_hca', 0)
+        date_last_month_val = earliest_doc.get('set_date')
+        context.log(f"Extracted from raw: last_month: {last_month_val}, date_last_month: {date_last_month_val}")
+        
         # Fetch latest measurement for the day
         context.log("Fetching latest measurement")
         latest_res = tables_db.list_rows(
