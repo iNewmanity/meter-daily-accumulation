@@ -94,8 +94,8 @@ def main(context):
         earliest_doc = earliest_res['rows'][0]
         
         # Get last_month and date_last_month from the raw measurement
-        last_month_val = earliest_doc.get('consumption_at_set_date_hca', 0)
-        date_last_month_val = earliest_doc.get('set_date')
+        last_month_val = earliest_doc.get('consumption_at_set_date_17_hca', 0)
+        date_last_month_val = earliest_doc.get('set_date_17')
         context.log(f"Extracted from raw: last_month: {last_month_val}, date_last_month: {date_last_month_val}")
         
         # Fetch latest measurement for the day
