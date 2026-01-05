@@ -1,35 +1,39 @@
 # Meter Daily Accumulation
 
-Appwrite function to accumulate daily measurements from raw data.
+Appwrite functions for processing meter measurements.
 
-## Features
+## Functions
 
-- Takes `device-id` and `date` (YYYY-MM-DD) as input.
-- Queries the `raw` collection for the first and last measurement of the day.
-- Calculates daily consumption.
-- Stores the results in the `daily-measurements` collection.
+### 1. Accumulate Measurements
+Accumulates daily measurements from raw data for a specific device.
+- **Path**: `functions/accumulate_measurements`
+- **Input**: `{"device-id": "DEVICE_ID", "date": "YYYY-MM-DD"}`
 
-## Deployment
+### 2. Trigger Accumulation for All Meters
+Queries all active meters and triggers the `Accumulate Measurements` function for each.
+- **Path**: `functions/trigger_accumulation_for_all_meters`
+- **Input**: `{"date": "YYYY-MM-DD"}`
 
-1. Create a new Appwrite function using the Python runtime.
-2. Add the following environment variables to your function:
-   - `APPWRITE_DATABASE_ID`: The ID of your database.
-   - `APPWRITE_RAW_COLLECTION_ID`: The ID of the `raw` collection.
-   - `APPWRITE_DAILY_COLLECTION_ID`: The ID of the `daily-measurements` collection.
-   - `APPWRITE_METERS_COLLECTION_ID`: The ID of the `meters` collection.
-   - `APPWRITE_API_KEY`: An API key with read/write access to databases.
-3. Deploy the code from the `functions/accumulate_measurements` directory.
+## Setup and Deployment
 
-## Input Format
+1. Create two Python Appwrite functions.
+2. Configure the following environment variables:
 
-The function expects a JSON body:
+#### For both functions:
+- `APPWRITE_DATABASE_ID`: Database ID.
+- `APPWRITE_METERS_COLLECTION_ID`: ID of the `meters` collection.
+- `APPWRITE_FUNCTION_ENDPOINT`: Appwrite endpoint (e.g., `https://cloud.appwrite.io/v1`).
+- `APPWRITE_FUNCTION_PROJECT_ID`: Project ID.
+- `APPWRITE_API_KEY`: API key with Database and Execution permissions.
 
-```json
-{
-  "device-id": "DEVICE_ID",
-  "date": "2026-01-05"
-}
-```
+#### Specifically for `accumulate_measurements`:
+- `APPWRITE_RAW_COLLECTION_ID`: ID of the `raw` collection.
+- `APPWRITE_DAILY_COLLECTION_ID`: ID of the `daily-measurements` collection.
+
+#### Specifically for `trigger_accumulation_for_all_meters`:
+- `ACCUMULATE_FUNCTION_ID`: The ID of the `accumulate_measurements` function.
+
+3. Deploy each function from its respective directory.
 
 ## Testing
 
