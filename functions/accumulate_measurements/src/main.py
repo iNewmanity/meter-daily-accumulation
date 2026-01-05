@@ -61,9 +61,9 @@ def main(context):
             raw_collection_id,
             queries=[
                 Query.equal('meters', device_id),
-                Query.greater_than_equal('device_time', start_of_day),
-                Query.less_than_equal('device_time', end_of_day),
-                Query.order_asc('device_time'),
+                Query.greater_than_equal('timestamp', start_of_day),
+                Query.less_than_equal('timestamp', end_of_day),
+                Query.order_asc('timestamp'),
                 Query.limit(1)
             ]
         )
@@ -75,9 +75,9 @@ def main(context):
             raw_collection_id,
             queries=[
                 Query.equal('meters', device_id),
-                Query.greater_than_equal('device_time', start_of_day),
-                Query.less_than_equal('device_time', end_of_day),
-                Query.order_desc('device_time'),
+                Query.greater_than_equal('timestamp', start_of_day),
+                Query.less_than_equal('timestamp', end_of_day),
+                Query.order_desc('timestamp'),
                 Query.limit(1)
             ]
         )
@@ -86,7 +86,7 @@ def main(context):
             context.log("No data found for the given device and date")
             return context.res.json({"message": "No data found for the given device and date"}, 404)
 
-        context.log(f"Found {earliest_res['total']} measurements for this day using 'device_time' attribute")
+        context.log(f"Found {earliest_res['total']} measurements for this day using 'timestamp' attribute")
 
         # In TablesDB, the key is 'rows' instead of 'documents'
         earliest_doc = earliest_res['rows'][0]
