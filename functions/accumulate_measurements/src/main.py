@@ -54,9 +54,9 @@ def main(context):
     tables_db = TablesDB(client)
 
     try:
-        # Fetch earliest measurement for the day
-        context.log(f"Fetching earliest measurement between {start_of_day} and {end_of_day}")
-        earliest_res = tables_db.list_rows(
+        # Fetch all measurements for the day
+        context.log(f"Fetching measurements between {start_of_day} and {end_of_day} using 'timestamp' attribute")
+        measurements_res = tables_db.list_rows(
             database_id,
             raw_collection_id,
             queries=[
@@ -64,33 +64,25 @@ def main(context):
                 Query.greater_than_equal('timestamp', start_of_day),
                 Query.less_than_equal('timestamp', end_of_day),
                 Query.order_asc('timestamp'),
-                Query.limit(1)
+                Query.limit(100) # Increased limit to fetch all (up to 100)
             ]
         )
 
-        # Fetch latest measurement for the day
-        context.log("Fetching latest measurement")
-        latest_res = tables_db.list_rows(
-            database_id,
-            raw_collection_id,
-            queries=[
-                Query.equal('meters', device_id),
-                Query.greater_than_equal('timestamp', start_of_day),
-                Query.less_than_equal('timestamp', end_of_day),
-                Query.order_desc('timestamp'),
-                Query.limit(1)
-            ]
-        )
+        total_found = measurements_res['total']
+        rows = measurements_res['rows']
 
-        if earliest_res['total'] == 0:
+        if total_found == 0:
             context.log("No data found for the given device and date")
             return context.res.json({"message": "No data found for the given device and date"}, 404)
 
-        context.log(f"Found {earliest_res['total']} measurements for this day using 'timestamp' attribute")
+        context.log(f"Found {total_found} measurements for this day")
 
-        # In TablesDB, the key is 'rows' instead of 'documents'
-        earliest_doc = earliest_res['rows'][0]
-        latest_doc = latest_res['rows'][0]
+        # Log all measurements
+        for i, row in enumerate(rows):
+            context.log(f"Measurement {i+1}: {json.dumps(row)}")
+
+        earliest_doc = rows[0]
+        latest_doc = rows[-1]
 
         start_val = earliest_doc.get('current_consumption_hca', 0)
         end_val = latest_doc.get('current_consumption_hca', 0)
